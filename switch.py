@@ -1,11 +1,9 @@
 import numpy as np
 import random
 
-# 分割函数
 def split_into_segments(total, parts):
     if parts == 0:
         return []
-    # 随机分割total成parts个正整数
     cuts = np.sort(np.random.choice(range(1, total), parts - 1, replace=False))
     prev = 0
     res = []
@@ -16,17 +14,14 @@ def split_into_segments(total, parts):
     return res
 
 def construct_array_with_transitions(all_num=100, sp=0.4, trans=0.1, start_num = 0):
-    # 确保跳变次数是偶数的一半用于0->1，一半用于1->0
     num_1 = int(all_num * sp)
     #print(num_1)
     num_0 = all_num - num_1
     transitions = int(all_num * trans)
     #print(transitions)
-    segments = transitions + 1  # 段数比跳变多1
+    segments = transitions + 1
     #print(transitions)
     
-    # 分配段数给0和1
-    # 假设以0开头，则0的段数为 (segments + 1) // 2，1的段数为 segments // 2
     if(start_num == 0):
         segments_0 = (segments + 1) // 2
         segments_1 = segments // 2
@@ -34,16 +29,14 @@ def construct_array_with_transitions(all_num=100, sp=0.4, trans=0.1, start_num =
         segments_0 = segments // 2
         segments_1 = (segments + 1) // 2
     
-    # 将num_0和num_1平均分配到各自的段中
     zeros = split_into_segments(num_0, segments_0)
     #print(zeros)
     ones = split_into_segments(num_1, segments_1)
 
-    # 游程值与长度展开成整段序列，位值与原来的逐段 extend 相同
     values = []
     lengths = []
     i0, i1 = 0, 0
-    start_with_zero = segments_0 > segments_1  # 如果0的段数更多，就以0开头
+    start_with_zero = segments_0 > segments_1  
 
     while i0 < len(zeros) or i1 < len(ones):
         if start_with_zero:
@@ -70,7 +63,6 @@ def construct_array_with_transitions(all_num=100, sp=0.4, trans=0.1, start_num =
     else:
         result = np.zeros(0, dtype=np.uint8)
 
-    # 检查结果是否合法
     # print("num0:{},num1:{},len(result):{}".format(num_0,num_1,len(result)))
     ones_count = int(result.sum(dtype=np.int64))
     assert result.size == num_0 + num_1
@@ -135,7 +127,7 @@ def ha_switch(a_trans,a_sp,b_trans,b_sp,cycle = 100,time = 500,length = 100):
     c_sp = c_num / (cycle * num)
     return s_trans, s_sp, c_trans, c_sp
 
-def fa_switch(a_trans,a_sp,b_trans,b_sp,cin_trans,cin_sp,cycle = 100,time = 500,length = 100):#time指周期长度，一周期的长度为60
+def fa_switch(a_trans,a_sp,b_trans,b_sp,cin_trans,cin_sp,cycle = 100,time = 500,length = 100):
     s_swith = 0
     s_num = 0
     c_switch = 0
