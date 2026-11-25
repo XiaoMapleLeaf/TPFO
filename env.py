@@ -132,7 +132,7 @@ class CircuitEnv(gym.Env):
                 shutil.copy2(source_verilog_path, destination_verilog_path)
                 self.step_verilog = destination_verilog_path
             except (FileNotFoundError, Exception) as e:
-                tqdm.write(f"❌ 错误: 恢复里程碑文件 '{source_verilog_path}' 失败: {e}。将重置到初始状态。")
+                tqdm.write(f"❌ ERROR: Back to '{source_verilog_path}' failure: {e}")
                 start_from_milestone = None
 
         if start_from_milestone is not None:
@@ -203,10 +203,10 @@ class CircuitEnv(gym.Env):
                     has_p_signal = True
 
             if (has_low_toggle and has_high_toggle) or (has_ip_signal and has_p_signal):
-                tqdm.write(f"找到第一个有意义的优化阶段: Stage {i}")
+                tqdm.write(f"Get: Stage {i}")
                 return i
         
-        tqdm.write("未找到混合信号阶段，将从 Stage 0 开始优化。")
+        tqdm.write("Beginning Stage 0")
         return 0
 
     def _calculate_reward(self, improvement, base_value, penalty_coefficient=1.5, dead_zone_threshold=0.01):
@@ -310,17 +310,15 @@ class CircuitEnv(gym.Env):
             if comp_id in affected_comp_ids:
                 affected_components[comp_id] = comp
         
-        # --- NEW: Debugging logic to print output loads ---
         for comp_id, comp_info in affected_components.items():
             print(f"--- Analyzing loads for {comp_id} ---")
             for output_signal in comp_info['outputs']:
                 load_cap = calculate_load_capacitance(output_signal, self.connections)
                 print(f"  -> Output '{output_signal}': Load Capacitance (Rise/Fall) = {load_cap}")
-        # --- END NEW ---
 
         # 3. Calculate the total "homogeneity improvement" score for all affected components by this swap
         total_homogeneity_improvement = 0
-        total_pin_preference_improvement = 0 # NEW
+        total_pin_preference_improvement = 0 
         for comp_id, comp_info in affected_components.items():
             original_inputs = comp_info['inputs']
             # Ensure this component is indeed a load of s1 or s2
@@ -382,7 +380,7 @@ class CircuitEnv(gym.Env):
             else:
                 self.step_verilog = swap_in_stage(self.step_verilog, pos[0], pos[1], self.dones, self.input_bit)
         
-        # --- Go-Explore: 记录轨迹 ---
+        # --- Go-Explore ---
         self.current_trajectory.append({'action': pos, 'reward': 0}) # reward稍后更新
 
         if self.steps_in_current_stage >= self.max_steps_per_stage:
@@ -393,9 +391,6 @@ class CircuitEnv(gym.Env):
 
         is_last_stage = self.steps >= len(self.valid_actions) -1
         done = (pos[0] == 'NEXT' and is_last_stage) or self.steps >= len(self.valid_actions)
-        # --- END REVISED ---
-        
-        # --- STATE UPDATE & REWARD CALCULATION ---
         d_raw, p_raw, swapping, signals, fas, has, self.connections = self._run_and_cache_estimate(self.step_verilog)
 
         # FIX 3: Robustly update state from the ground truth (the file analysis)
@@ -412,18 +407,13 @@ class CircuitEnv(gym.Env):
         a = a_calc / 10
         p = p_raw * 1000
 
-        # --- NEW: Update previous_power for print analysis ---
         self.previous_power = self.current_p
-        # --- END NEW ---
-        # --- NEW: Update current global PPA after step ---
         self.current_d = d
         self.current_a = a
         self.current_p = p
-        # --- END NEW ---
 
         obs_for_return = self._get_obs()
 
-        # --- REVISED: Greedy Heuristic Reward Calculation ---
         power_reward = 0
         
         # 1. For SWAP actions, the reward equals the "homogeneity improvement score"
@@ -604,7 +594,7 @@ class CircuitEnv(gym.Env):
     def _get_state_sequence_for_stage(self, stage_index):
         """
         Generate the local, topology-related text sequence description for a specified single stage.
-        格式: COL <c> DOTS <d> SIG <n1> dly <path_delay> pwr <power_metric> ...
+        COL <c> DOTS <d> SIG <n1> dly <path_delay> pwr <power_metric> ...
         """
         # Safety check to ensure the stage index is valid
         if stage_index >= len(self.valid_actions):
